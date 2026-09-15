@@ -10,7 +10,7 @@ import {
   assignBusToDriver, unassignBusFromDriver,
   getAllStops, getStopsByRoute, createStop, updateStop, deleteStop,
   assignStopToRoute, removeStopFromRoute, reorderStopsInRoute, replaceStopInRoute, getRoutesForStop,
-  getDashboardStats, getRideLogs, getRidesTrend, deleteRideLog,
+  getDashboardStats, getRideLogs, getRidesTrend, deleteRideLog, getFleetLocations,
 } from '../services/libre-sakay.service';
 import {
   listBeneficiaries,

@@ -1,6 +1,11 @@
 import Redis from 'ioredis';
 
-const redisUrl = process.env.REDIS_URL || process.env.REDIS_INTERNAL_URL || 'redis://localhost:6379';
+const redisUrl = process.env.REDIS_URL || process.env.REDIS_PRIVATE_URL || process.env.REDIS_INTERNAL_URL || 'redis://localhost:6379';
+
+// Strip the redis:// scheme for logging since Node's URL puts port on host for non-http schemes.
+const hostMatch = redisUrl.match(/^redis:\/\/(?:[^@]+@)?([^:/]+)(?::(\d+))?/);
+const logHost = hostMatch ? hostMatch[1] + (hostMatch[2] ? `:${hostMatch[2]}` : '') : 'unknown';
+console.log(`[CACHE] Using Redis at ${logHost}`);
 
 const redis = new Redis(redisUrl, {
   lazyConnect: true,
