@@ -61,7 +61,7 @@ describe('transaction access scoping', () => {
     });
     (mockedPrisma.transaction.findMany as jest.Mock).mockResolvedValue([]);
 
-    await getAppointments(undefined, undefined, undefined, 'admin-1');
+    await getAppointments(undefined, undefined, undefined, undefined, 'admin-1');
 
     expect(mockedPrisma.transaction.findMany).toHaveBeenCalledWith(
       expect.objectContaining({

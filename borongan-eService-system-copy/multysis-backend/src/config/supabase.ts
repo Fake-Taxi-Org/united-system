@@ -1,4 +1,5 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import ws from 'ws';
 
 export const ESERVICE_BUCKET = 'eservice-uploads';
 
@@ -11,7 +12,10 @@ export function getSupabase(): SupabaseClient {
     if (!url || !key) {
       throw new Error('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY env vars');
     }
-    _supabase = createClient(url, key);
+    _supabase = createClient(url, key, {
+      transport: ws,
+      realtime: { transport: ws },
+    } as any);
   }
   return _supabase;
 }
