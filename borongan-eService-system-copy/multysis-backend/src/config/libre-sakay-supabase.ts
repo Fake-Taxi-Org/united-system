@@ -1,4 +1,5 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import ws from 'ws';
 
 let _client: SupabaseClient | null = null;
 
@@ -19,7 +20,10 @@ export function getLibreSakaySupabase(): SupabaseClient {
         'Missing LIBRE_SAKAY_SUPABASE_URL or LIBRE_SAKAY_SUPABASE_SERVICE_ROLE_KEY env vars'
       );
     }
-    _client = createClient(url, key);
+    _client = createClient(url, key, {
+      transport: ws,
+      realtime: { transport: ws },
+    } as any);
   }
   return _client;
 }

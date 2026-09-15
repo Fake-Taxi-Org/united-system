@@ -16,7 +16,7 @@ import { useBusLocations } from '@/hooks/useBusLocations';
 interface BusOnRoute {
   id: string;
   plate_number: string;
-  status: string;
+  is_active: boolean;
 }
 
 function useBusesOnRoute(routeId: string | null) {
@@ -26,9 +26,9 @@ function useBusesOnRoute(routeId: string | null) {
       if (!routeId) return [];
       const { data, error } = await supabase
         .from('buses')
-        .select('id, plate_number, status')
+        .select('id, plate_number, is_active')
         .eq('route_id', routeId)
-        .eq('status', 'active');
+        .eq('is_active', true);
       if (error) throw error;
       return data ?? [];
     },
@@ -177,12 +177,12 @@ export function RouteDetail() {
                       <Badge
                         variant="outline"
                         className={`text-xs ${
-                          bus.status === 'active'
+                          bus.is_active === true
                             ? 'border-green-200 text-green-700 bg-green-50'
                             : 'border-gray-200 text-gray-500'
                         }`}
                       >
-                        {bus.status}
+                        {bus.is_active ? 'Active' : 'Inactive'}
                       </Badge>
                     </div>
                   ))}

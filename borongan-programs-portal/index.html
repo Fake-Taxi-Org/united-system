@@ -49,11 +49,13 @@
       }
     })();
   </script>
-  <!-- Capture beforeinstallprompt as early as possible — before any module loads -->
+  <!-- Capture beforeinstallprompt as early as possible — before any module loads.
+       Do NOT preventDefault here — that triggers a Chrome devtools warning unless
+       followed immediately by prompt(). We preventDefault right before prompt()
+       in useInstallPrompt.install() so Chrome's mini-infobar doesn't appear. -->
   <script>
     window.__pwaInstallPrompt = null;
     window.addEventListener('beforeinstallprompt', function (e) {
-      e.preventDefault();
       window.__pwaInstallPrompt = e;
     });
   </script>

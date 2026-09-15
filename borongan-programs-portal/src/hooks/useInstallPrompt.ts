@@ -36,9 +36,11 @@ export function useInstallPrompt() {
       setCanInstall(true);
     }
 
-    // Also listen for future firings
+    // Also listen for future firings.
+    // Do NOT preventDefault here — that triggers a Chrome devtools warning
+    // unless followed immediately by prompt(). preventDefault happens right
+    // before prompt() in install() instead.
     const handler = (e: Event) => {
-      e.preventDefault();
       const prompt = e as BeforeInstallPromptEvent;
       window.__pwaInstallPrompt = prompt;
       setDeferredPrompt(prompt);
@@ -65,6 +67,10 @@ export function useInstallPrompt() {
 
     const prompt = deferredPrompt || window.__pwaInstallPrompt;
     if (prompt) {
+      // preventDefault only when we're actually prompting the user — avoids the
+      // Chrome "Banner not shown" warning that's logged when preventDefault is
+      // called without a follow-up prompt() call.
+      prompt.preventDefault();
       prompt.prompt();
       const { outcome } = await prompt.userChoice;
       if (outcome === 'accepted') {
