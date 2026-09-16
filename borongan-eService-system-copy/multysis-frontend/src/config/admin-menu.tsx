@@ -1,7 +1,8 @@
-import { buildEGovernmentSubmenu } from '@/utils/dynamic-menu';
+// ponytail: E-government hidden for now — re-enable this import when restoring.
+// import { buildEGovernmentSubmenu } from '@/utils/dynamic-menu';
 import {
   FiCreditCard,
-  FiFileText,
+  // FiFileText, // ponytail: E-government hidden for now — re-enable with the menu entry
   FiHelpCircle,
   FiHome,
   FiMessageSquare,
@@ -34,69 +35,70 @@ interface NotificationCounts {
 }
 
 export const getAdminMenuItems = async (notificationCounts?: NotificationCounts): Promise<MenuItem[]> => {
-  // Get dynamic services for e-government submenu
-  let dynamicSubmenuItems: {
-    path: string;
-    label: string;
-    badgeCount?: number;
-    isCategoryHeader?: boolean;
-    category?: string;
-  }[] = [];
-
-  try {
-    const { getDynamicServices } = await import('@/utils/dynamic-menu');
-    const dynamicServices = await getDynamicServices();
-    const menuEntries = buildEGovernmentSubmenu(dynamicServices);
-
-    // Transform menu entries (with sections) to flat submenu items with category headers
-    const transformedItems: {
-      path: string;
-      label: string;
-      badgeCount?: number;
-      isCategoryHeader?: boolean;
-      category?: string;
-    }[] = [];
-
-    menuEntries.forEach(entry => {
-      if (entry.type === 'section') {
-        // Add category header
-        transformedItems.push({
-          path: '',
-          label: `▾ ${entry.title} ▾`,
-          isCategoryHeader: true,
-          category: entry.title,
-        });
-
-        // Add items in this category
-        entry.items.forEach(item => {
-          // Find the service to get badge count
-          const pathParts = item.path.split('/');
-          const servicePath = pathParts[pathParts.length - 1];
-
-          const matchingService = dynamicServices.find(s => {
-            const normalizedCode = s.code.toLowerCase().replace(/_/g, '-');
-            return normalizedCode === servicePath;
-          });
-
-          const badgeCount = matchingService
-            ? notificationCounts?.pendingApplicationsByService?.[matchingService.code] || 0
-            : 0;
-
-          transformedItems.push({
-            path: item.path,
-            label: item.label,
-            badgeCount: badgeCount > 0 ? badgeCount : undefined,
-            category: entry.title, // Store category for each service
-          });
-        });
-      }
-    });
-
-    dynamicSubmenuItems = transformedItems;
-  } catch (error) {
-    console.error('Failed to load dynamic services for menu:', error);
-    // Continue with empty dynamic submenu items
-  }
+  // ponytail: E-government hidden for now — also skip its dynamic submenu fetch.
+  // Restore both blocks (this whole fetch + the menu entry below) when ready.
+  // let dynamicSubmenuItems: {
+  //   path: string;
+  //   label: string;
+  //   badgeCount?: number;
+  //   isCategoryHeader?: boolean;
+  //   category?: string;
+  // }[] = [];
+  //
+  // try {
+  //   const { getDynamicServices } = await import('@/utils/dynamic-menu');
+  //   const dynamicServices = await getDynamicServices();
+  //   const menuEntries = buildEGovernmentSubmenu(dynamicServices);
+  //
+  //   // Transform menu entries (with sections) to flat submenu items with category headers
+  //   const transformedItems: {
+  //     path: string;
+  //     label: string;
+  //     badgeCount?: number;
+  //     isCategoryHeader?: boolean;
+  //     category?: string;
+  //   }[] = [];
+  //
+  //   menuEntries.forEach(entry => {
+  //     if (entry.type === 'section') {
+  //       // Add category header
+  //       transformedItems.push({
+  //         path: '',
+  //         label: `▾ ${entry.title} ▾`,
+  //         isCategoryHeader: true,
+  //         category: entry.title,
+  //       });
+  //
+  //       // Add items in this category
+  //       entry.items.forEach(item => {
+  //         // Find the service to get badge count
+  //         const pathParts = item.path.split('/');
+  //         const servicePath = pathParts[pathParts.length - 1];
+  //
+  //         const matchingService = dynamicServices.find(s => {
+  //           const normalizedCode = s.code.toLowerCase().replace(/_/g, '-');
+  //           return normalizedCode === servicePath;
+  //         });
+  //
+  //         const badgeCount = matchingService
+  //           ? notificationCounts?.pendingApplicationsByService?.[matchingService.code] || 0
+  //           : 0;
+  //
+  //         transformedItems.push({
+  //           path: item.path,
+  //           label: item.label,
+  //           badgeCount: badgeCount > 0 ? badgeCount : undefined,
+  //           category: entry.title, // Store category for each service
+  //         });
+  //       });
+  //     }
+  //   });
+  //
+  //   dynamicSubmenuItems = transformedItems;
+  // } catch (error) {
+  //   console.error('Failed to load dynamic services for menu:', error);
+  //   // Continue with empty dynamic submenu items
+  // }
 
   return [
     { path: '/admin/dashboard', label: 'Dashboard', icon: <FiHome />, system: 'core' },
@@ -110,24 +112,25 @@ export const getAdminMenuItems = async (notificationCounts?: NotificationCounts)
 
     { type: 'separator' as const, system: 'core' },
 
-    {
-      path: '/admin/e-government',
-      label: 'E-government',
-      icon: <FiFileText />,
-      hasSubmenu: true,
-      badgeCount: notificationCounts?.pendingApplications || 0,
-      system: 'core',
-      submenuItems: [
-        ...dynamicSubmenuItems,
-        // Static items that are not services
-        { path: '/admin/e-government/reports', label: 'Reports' },
-        { path: '/admin/e-government/gcash-reports', label: 'Gcash Reports' },
-        { path: '/admin/e-government/payments', label: 'Payments' },
-        { path: '/admin/e-government/billings', label: 'Billings' },
-        { path: '/admin/e-government/miscellaneous-fee', label: 'Miscellaneous Fee' },
-        { path: '/admin/e-government/qr-scanner', label: 'QR Scanner' },
-      ],
-    },
+    // ponytail: E-government nav hidden for now — restore when ready
+    // {
+    //   path: '/admin/e-government',
+    //   label: 'E-government',
+    //   icon: <FiFileText />,
+    //   hasSubmenu: true,
+    //   badgeCount: notificationCounts?.pendingApplications || 0,
+    //   system: 'core',
+    //   submenuItems: [
+    //     ...dynamicSubmenuItems,
+    //     // Static items that are not services
+    //     { path: '/admin/e-government/reports', label: 'Reports' },
+    //     { path: '/admin/e-government/gcash-reports', label: 'Gcash Reports' },
+    //     { path: '/admin/e-government/payments', label: 'Payments' },
+    //     { path: '/admin/e-government/billings', label: 'Billings' },
+    //     { path: '/admin/e-government/miscellaneous-fee', label: 'Miscellaneous Fee' },
+    //     { path: '/admin/e-government/qr-scanner', label: 'QR Scanner' },
+    //   ],
+    // },
     { path: '/admin/e-bills-payment', label: 'E-Bills Payment', icon: <FiCreditCard />, system: 'core' },
     { path: '/admin/e-services', label: 'E-Services', icon: <FiTool />, system: 'core' },
     {
@@ -214,21 +217,22 @@ export const adminMenuItems: MenuItem[] = [
   { path: '/admin/residents', label: 'Residents', icon: <FiUsers />, system: 'core' },
   { path: '/admin/registration-workflow', label: 'Registration Requests', icon: <FiClipboard />, system: 'core' },
   { type: 'separator' as const, system: 'core' },
-  {
-    path: '/admin/e-government',
-    label: 'E-government',
-    icon: <FiFileText />,
-    hasSubmenu: true,
-    system: 'core',
-    submenuItems: [
-      { path: '/admin/e-government/reports', label: 'Reports' },
-      { path: '/admin/e-government/gcash-reports', label: 'Gcash Reports' },
-      { path: '/admin/e-government/payments', label: 'Payments' },
-      { path: '/admin/e-government/billings', label: 'Billings' },
-      { path: '/admin/e-government/miscellaneous-fee', label: 'Miscellaneous Fee' },
-      { path: '/admin/e-government/qr-scanner', label: 'QR Scanner' },
-    ],
-  },
+  // ponytail: E-government nav hidden for now — restore when ready
+  // {
+  //   path: '/admin/e-government',
+  //   label: 'E-government',
+  //   icon: <FiFileText />,
+  //   hasSubmenu: true,
+  //   system: 'core',
+  //   submenuItems: [
+  //     { path: '/admin/e-government/reports', label: 'Reports' },
+  //     { path: '/admin/e-government/gcash-reports', label: 'Gcash Reports' },
+  //     { path: '/admin/e-government/payments', label: 'Payments' },
+  //     { path: '/admin/e-government/billings', label: 'Billings' },
+  //     { path: '/admin/e-government/miscellaneous-fee', label: 'Miscellaneous Fee' },
+  //     { path: '/admin/e-government/qr-scanner', label: 'QR Scanner' },
+  //   ],
+  // },
   { path: '/admin/e-bills-payment', label: 'E-Bills Payment', icon: <FiCreditCard />, system: 'core' },
   { path: '/admin/e-services', label: 'E-Services', icon: <FiTool />, system: 'core' },
   {

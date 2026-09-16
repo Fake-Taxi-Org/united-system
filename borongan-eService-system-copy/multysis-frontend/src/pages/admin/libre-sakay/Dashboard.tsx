@@ -151,6 +151,7 @@ export function DashboardSection() {
   const trendData = (trend ?? []).map(p => ({
     ...p,
     label: new Date(p.date).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', timeZone: 'Asia/Manila' }),
+    repeat: Math.max(0, p.rides - p.unique_passengers),
   }));
 
   const hasError = !!(statsError || fleetError || trendError || pendingError || recentAppsError);
@@ -256,10 +257,14 @@ export function DashboardSection() {
                     <XAxis dataKey="label" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
                     <YAxis tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
                     <RechartsTooltip
-                      formatter={(v: number, name: string) => [v, name === 'rides' ? 'Rides' : 'Passengers']}
+                      formatter={(v: number, name: string) => [
+                        v,
+                        name === 'unique_passengers' ? 'Unique Passengers' : 'Repeat Rides',
+                      ]}
                     />
-                    <Bar dataKey="rides" fill="#3b82f6" radius={[3, 3, 0, 0]} name="rides" />
-                    <Bar dataKey="passengers" fill="#10b981" radius={[3, 3, 0, 0]} name="passengers" />
+                    <Bar dataKey="unique_passengers" stackId="rides" fill="#10b981" radius={[0, 0, 0, 0]} name="unique_passengers" />
+                    <Bar dataKey="repeat" stackId="rides" fill="#3b82f6" radius={[3, 3, 0, 0]} name="repeat" />
+                    <Legend iconType="circle" iconSize={10} wrapperStyle={{ fontSize: 11 }} />
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
@@ -272,13 +277,30 @@ export function DashboardSection() {
         </Card>
       </div>
 
-      {/* Row 3: Weekly summary mini cards */}
-      <div className="grid grid-cols-3 gap-4">
+      {/* Row 3: Weekly effectiveness summary */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <MiniCard title="Rides This Week" value={dashStats?.rides_this_week} loading={statsLoading} />
-        <MiniCard title="Passengers This Week" value={dashStats?.passengers_this_week} loading={statsLoading} />
         <MiniCard
-          title="Avg Passengers / Ride"
-          value={dashStats?.avg_passengers_per_ride != null ? Number(dashStats.avg_passengers_per_ride.toFixed(1)) : undefined}
+          title="Unique Passengers This Week"
+          value={dashStats?.unique_passengers_this_week}
+          loading={statsLoading}
+        />
+        <MiniCard
+          title="Avg Rides / Passenger"
+          value={
+            dashStats?.avg_rides_per_passenger != null
+              ? Number(dashStats.avg_rides_per_passenger.toFixed(1))
+              : undefined
+          }
+          loading={statsLoading}
+        />
+        <MiniCard
+          title="Repeat Rider Rate"
+          value={
+            dashStats?.repeat_rider_rate != null
+              ? `${Number(dashStats.repeat_rider_rate.toFixed(1))}%`
+              : undefined
+          }
           loading={statsLoading}
         />
       </div>
