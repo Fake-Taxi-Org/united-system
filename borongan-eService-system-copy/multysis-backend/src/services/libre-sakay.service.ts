@@ -691,14 +691,28 @@ export const getDashboardStats = async () => {
       .gte('boarded_at', todayPHT),
     supabase()
       .from('ride_logs')
-      .select('id')
-      .gte('boarded_at', new Date(new Date(todayPHT).getTime() - 6 * 24 * 60 * 60 * 1000).toISOString()),
+      .select('resident_id')
+      .gte('boarded_at', new Date(new Date(todayPHT).getTime() - 6 * 24 * 60 * 60 * 1000).toISOString())
+      .not('resident_id', 'is', null),
   ]);
 
-  const ridesThisWeek = ridesWeek.data?.length ?? 0;
-  // ride_logs has no passenger_count column — each row represents one boarding.
-  // Until a passenger_count column is added, treat each ride as 1 passenger.
-  const passengersThisWeek = ridesThisWeek;
+  // Effectiveness stats over the 7-day PHT window. ride_logs has no passenger_count
+  // column — each row is one boarding by one resident, so "passengers" == "riders"
+  // and the meaningful metrics are unique-rider reach and repeat-rider rate.
+  const weekRows = (ridesWeek.data ?? []) as Array<{ resident_id: string }>;
+  const ridesThisWeek = weekRows.length;
+  const uniquePassengersThisWeek = new Set(weekRows.map(r => r.resident_id)).size;
+  const rideCountByResident: Record<string, number> = {};
+  for (const r of weekRows) {
+    rideCountByResident[r.resident_id] = (rideCountByResident[r.resident_id] ?? 0) + 1;
+  }
+  const repeatPassengers = Object.values(rideCountByResident).filter(c => c > 1).length;
+  const repeatRiderRate = uniquePassengersThisWeek > 0
+    ? Math.round((repeatPassengers / uniquePassengersThisWeek) * 1000) / 10
+    : 0;
+  const avgRidesPerPassenger = uniquePassengersThisWeek > 0
+    ? Math.round((ridesThisWeek / uniquePassengersThisWeek) * 10) / 10
+    : 0;
 
   return {
     total_buses: busCount.count ?? 0,
@@ -707,8 +721,9 @@ export const getDashboardStats = async () => {
     total_drivers: driverCount.count ?? 0,
     rides_today: ridesToday.count ?? 0,
     rides_this_week: ridesThisWeek,
-    passengers_this_week: passengersThisWeek,
-    avg_passengers_per_ride: ridesThisWeek > 0 ? Math.round((passengersThisWeek / ridesThisWeek) * 10) / 10 : 0,
+    unique_passengers_this_week: uniquePassengersThisWeek,
+    avg_rides_per_passenger: avgRidesPerPassenger,
+    repeat_rider_rate: repeatRiderRate,
   };
 };
 
@@ -827,7 +842,7 @@ export const getRideLogs = async (page = 1, limit = 20, filters: RideLogFilters 
   return { data: data ?? [], total: count ?? 0, page, limit, totalPages: Math.ceil((count ?? 0) / limit) };
 };
 
-export const getRidesTrend = async (days = 7): Promise<{ date: string; rides: number; passengers: number }[]> => {
+export const getRidesTrend = async (days = 7): Promise<{ date: string; rides: number; unique_passengers: number }[]> => {
   const now = new Date();
   // Get "today" in PHT
   const phtTodayStr = new Intl.DateTimeFormat('en-CA', {
@@ -836,18 +851,18 @@ export const getRidesTrend = async (days = 7): Promise<{ date: string; rides: nu
     month: '2-digit',
     day: '2-digit',
   }).format(now);
-  
+
   const since = new Date(`${phtTodayStr}T00:00:00+08:00`);
   since.setDate(since.getDate() - (days - 1));
 
   const { data, error } = await supabase()
     .from('ride_logs')
-    .select('boarded_at')
+    .select('boarded_at, resident_id')
     .gte('boarded_at', since.toISOString());
 
   if (error) throw new Error('Failed to fetch rides trend: ' + error.message);
 
-  const byDay: Record<string, { rides: number; passengers: number }> = {};
+  const byDay: Record<string, { rides: number; uniqueSet: Set<string> }> = {};
   for (let i = 0; i < days; i++) {
     const d = new Date(since);
     d.setDate(d.getDate() + i);
@@ -857,11 +872,12 @@ export const getRidesTrend = async (days = 7): Promise<{ date: string; rides: nu
       month: '2-digit',
       day: '2-digit',
     }).format(d);
-    byDay[dStr] = { rides: 0, passengers: 0 };
+    byDay[dStr] = { rides: 0, uniqueSet: new Set() };
   }
 
-  for (const row of data ?? []) {
-    const boardedAt = parseBoardedAt(row.boarded_at as string);
+  for (const row of (data ?? []) as Array<{ boarded_at: string; resident_id: string | null }>) {
+    if (!row.resident_id) continue;
+    const boardedAt = parseBoardedAt(row.boarded_at);
     if (isNaN(boardedAt.getTime())) continue;
     const day = new Intl.DateTimeFormat('en-CA', {
       timeZone: 'Asia/Manila',
@@ -869,14 +885,17 @@ export const getRidesTrend = async (days = 7): Promise<{ date: string; rides: nu
       month: '2-digit',
       day: '2-digit',
     }).format(boardedAt);
-    if (byDay[day]) {
-      byDay[day].rides++;
-      // ride_logs has no passenger_count â€” each ride = 1 passenger for now
-      byDay[day].passengers += 1;
-    }
+    const bucket = byDay[day];
+    if (!bucket) continue;
+    bucket.rides++;
+    bucket.uniqueSet.add(row.resident_id);
   }
 
-  return Object.entries(byDay).map(([date, v]) => ({ date, ...v }));
+  return Object.entries(byDay).map(([date, v]) => ({
+    date,
+    rides: v.rides,
+    unique_passengers: v.uniqueSet.size,
+  }));
 };
 
 export const deleteRideLog = async (id: string): Promise<void> => {
