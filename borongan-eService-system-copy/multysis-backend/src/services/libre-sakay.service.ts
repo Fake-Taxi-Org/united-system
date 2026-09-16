@@ -7,6 +7,10 @@ import prisma from '../config/database';
 
 const supabase = () => getLibreSakaySupabase();
 
+// Postgres returns UTC timestamps as "...+00" which Node ≥20 strict mode rejects
+// in `new Date(...)`. Replace "+00" with "Z" so the parser accepts it.
+const parseBoardedAt = (s: string): Date => new Date(s.replace(/\+00$/, 'Z'));
+
 // =============================================================================
 // TYPES
 // =============================================================================
@@ -857,7 +861,8 @@ export const getRidesTrend = async (days = 7): Promise<{ date: string; rides: nu
   }
 
   for (const row of data ?? []) {
-    const boardedAt = new Date(row.boarded_at as string);
+    const boardedAt = parseBoardedAt(row.boarded_at as string);
+    if (isNaN(boardedAt.getTime())) continue;
     const day = new Intl.DateTimeFormat('en-CA', {
       timeZone: 'Asia/Manila',
       year: 'numeric',
