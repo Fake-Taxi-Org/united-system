@@ -22,6 +22,9 @@ jest.mock('../../config/database', () => ({
     soloParentBeneficiary: {
       findUnique: jest.fn(),
     },
+    healthcareWorkerBeneficiary: {
+      findUnique: jest.fn(),
+    },
     beneficiaryProgramPivot: {
       upsert: jest.fn(),
     },
@@ -82,6 +85,7 @@ describe('Portal Programs Service — reviewApplicationAdmin', () => {
     mockedPrisma.pWDBeneficiary.findUnique.mockResolvedValue({ id: 'pwd-1' });
     mockedPrisma.studentBeneficiary.findUnique.mockResolvedValue({ id: 'st-1' });
     mockedPrisma.soloParentBeneficiary.findUnique.mockResolvedValue({ id: 'sp-1' });
+    mockedPrisma.healthcareWorkerBeneficiary.findUnique.mockResolvedValue({ id: 'hw-1' });
 
     const upsertMock = jest.fn().mockResolvedValue({});
     const mockTx = jest.fn().mockImplementation((cb) => {
@@ -97,6 +101,7 @@ describe('Portal Programs Service — reviewApplicationAdmin', () => {
         pWDBeneficiary: { findUnique: jest.fn().mockResolvedValue({ id: 'pwd-1' }) },
         studentBeneficiary: { findUnique: jest.fn().mockResolvedValue({ id: 'st-1' }) },
         soloParentBeneficiary: { findUnique: jest.fn().mockResolvedValue({ id: 'sp-1' }) },
+        healthcareWorkerBeneficiary: { findUnique: jest.fn().mockResolvedValue({ id: 'hw-1' }) },
         beneficiaryProgramPivot: { upsert: upsertMock },
       };
       return cb(tx);
@@ -105,8 +110,9 @@ describe('Portal Programs Service — reviewApplicationAdmin', () => {
 
     await reviewApplicationAdmin('app-1', 'approve', 'admin-1');
 
-    // Should have upserted 4 pivot rows (one per beneficiary type for ALL program)
-    expect(upsertMock).toHaveBeenCalledTimes(4);
+    // Should have upserted 5 pivot rows (one per beneficiary type for ALL program,
+    // including HEALTHCARE_WORKER which was added after this test was first written)
+    expect(upsertMock).toHaveBeenCalledTimes(5);
   });
 
   it('should reject application without creating pivots', async () => {

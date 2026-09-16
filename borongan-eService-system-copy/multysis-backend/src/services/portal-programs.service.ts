@@ -481,23 +481,26 @@ export const getApplicationAdmin = async (applicationId: string) => {
 async function syncLibreSakayBeneficiary(
   residentUuid: string,
   displayResidentId: string | null,
-  approvedAt: Date
+  approvedAt: Date,
+  identity: { fullName: string; picturePath: string | null } | null = null
 ): Promise<void> {
   // The QR code encodes displayResidentId if available, else the UUID
   const qrId = displayResidentId || residentUuid;
   try {
     const supabase = getLibreSakaySupabase();
+    const payload: Record<string, unknown> = {
+      resident_id: qrId,
+      resident_uuid: residentUuid,
+      approved_at: approvedAt.toISOString(),
+      synced_at: new Date().toISOString(),
+    };
+    if (identity) {
+      payload.full_name = identity.fullName;
+      payload.picture_path = identity.picturePath;
+    }
     const { error } = await supabase
       .from('libre_sakay_beneficiary')
-      .upsert(
-        {
-          resident_id: qrId,
-          resident_uuid: residentUuid,
-          approved_at: approvedAt.toISOString(),
-          synced_at: new Date().toISOString(),
-        },
-        { onConflict: 'resident_id' }
-      );
+      .upsert(payload, { onConflict: 'resident_id' });
     if (error) {
       console.error('[libre-sakay-sync] Supabase upsert error:', error.message);
     }
@@ -534,7 +537,17 @@ export const reviewApplicationAdmin = async (
     where: { id: applicationId },
     include: {
       program: { select: { types: true, name: true } },
-      resident: { select: { id: true, residentId: true } },
+      resident: {
+        select: {
+          id: true,
+          residentId: true,
+          firstName: true,
+          middleName: true,
+          lastName: true,
+          extensionName: true,
+          picturePath: true,
+        },
+      },
     },
   });
 
@@ -654,10 +667,15 @@ export const reviewApplicationAdmin = async (
   const isLibreSakay = application.program.name.toLowerCase().includes('libre sakay');
   if (isLibreSakay) {
     if (action === 'approve') {
+      const r = application.resident;
+      const fullName = [r.firstName, r.middleName, r.lastName, r.extensionName]
+        .filter(Boolean)
+        .join(' ');
       await syncLibreSakayBeneficiary(
-        application.resident.id,
-        application.resident.residentId ?? null,
-        result.reviewedAt ?? new Date()
+        r.id,
+        r.residentId ?? null,
+        result.reviewedAt ?? new Date(),
+        { fullName, picturePath: r.picturePath ?? null }
       );
     } else {
       // Rejected — remove from beneficiary list if previously approved

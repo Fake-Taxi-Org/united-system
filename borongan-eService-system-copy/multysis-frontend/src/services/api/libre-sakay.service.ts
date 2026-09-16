@@ -91,14 +91,15 @@ export interface DashboardStats {
   total_drivers: number;
   rides_today: number;
   rides_this_week: number;
-  passengers_this_week: number;
-  avg_passengers_per_ride: number;
+  unique_passengers_this_week: number;
+  avg_rides_per_passenger: number;
+  repeat_rider_rate: number;
 }
 
 export interface RidesTrendPoint {
   date: string;
   rides: number;
-  passengers: number;
+  unique_passengers: number;
 }
 
 export interface RideLog {
