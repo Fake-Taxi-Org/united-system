@@ -51,12 +51,25 @@ export interface BeneficiaryDetails extends BeneficiaryListItem {
 
 }
 
+export interface BeneficiaryCounts {
+  all: number;
+  active: number;
+  suspended: number;
+}
+
 export interface PaginatedBeneficiaries {
   data: BeneficiaryListItem[];
   total: number;
   page: number;
   limit: number;
   totalPages: number;
+  /**
+   * Unfiltered (no search, no status filter) counts broken down by enrollment
+   * status. Always reflects the full database state for the Libre Sakay program,
+   * so the pill tabs in the admin UI show stable totals regardless of the
+   * currently selected filter or search query.
+   */
+  counts: BeneficiaryCounts;
 }
 
 // =============================================================================
@@ -136,11 +149,77 @@ function mapEnrollmentStatus(status: string | null | undefined): 'ACTIVE' | 'INA
 // LIST BENEFICIARIES
 // =============================================================================
 
+/**
+ * Counts Libre Sakay beneficiaries by enrollment status. Returns the
+ * unfiltered totals (all / active / suspended) so the admin UI pill tabs
+ * can show stable counts regardless of the currently-selected filter.
+ *
+ * Implementation: two indexed queries (one for applications + their
+ * category ids, one for all pivots in the program), then a small in-memory
+ * join to determine each application's effective status.
+ */
+async function getStatusCounts(programId: string): Promise<BeneficiaryCounts> {
+  const [apps, pivots] = await Promise.all([
+    prisma.governmentProgramApplication.findMany({
+      where: { programId, status: 'approved' },
+      select: {
+        id: true,
+        resident: {
+          select: {
+            seniorCitizenBeneficiary: { select: { seniorCitizenId: true } },
+            pwdBeneficiary: { select: { pwdId: true } },
+            studentBeneficiary: { select: { studentId: true } },
+            soloParentBeneficiary: { select: { soloParentId: true } },
+            healthcareWorkerBeneficiary: { select: { healthcareWorkerId: true } },
+          },
+        },
+      },
+    }),
+    prisma.beneficiaryProgramPivot.findMany({
+      where: { programId },
+      select: { beneficiaryType: true, beneficiaryId: true, status: true },
+    }),
+  ]);
+
+  const pivotMap = new Map<string, string>();
+  for (const p of pivots) {
+    pivotMap.set(`${p.beneficiaryType}:${p.beneficiaryId}`, p.status ?? 'active');
+  }
+
+  let all = 0;
+  let active = 0;
+  let suspended = 0;
+  for (const app of apps) {
+    const cat = determineCategory(
+      app.resident.seniorCitizenBeneficiary,
+      app.resident.pwdBeneficiary,
+      app.resident.studentBeneficiary,
+      app.resident.soloParentBeneficiary,
+      app.resident.healthcareWorkerBeneficiary,
+    );
+    if (!cat) {
+      // No category → no enrollment pivot; counts as "all" only.
+      all++;
+      continue;
+    }
+    const pivotStatus = pivotMap.get(`${cat.type}:${cat.id}`);
+    if (pivotStatus === 'suspended') {
+      suspended++;
+    } else {
+      active++;
+    }
+    all++;
+  }
+  return { all, active, suspended };
+}
+
 export const listBeneficiaries = async (
   filter: 'all' | 'active' | 'suspended' = 'all',
   page = 1,
   limit = 20,
-  search?: string
+  search?: string,
+  sortBy: 'name' | 'date' = 'date',
+  sortOrder: 'asc' | 'desc' = 'desc'
 ): Promise<PaginatedBeneficiaries> => {
   const skip = (page - 1) * limit;
 
@@ -150,8 +229,17 @@ export const listBeneficiaries = async (
     select: { id: true },
   });
 
+  const emptyResult = (counts: BeneficiaryCounts = { all: 0, active: 0, suspended: 0 }): PaginatedBeneficiaries => ({
+    data: [],
+    total: 0,
+    page,
+    limit,
+    totalPages: 0,
+    counts,
+  });
+
   if (!program) {
-    return { data: [], total: 0, page, limit, totalPages: 0 };
+    return emptyResult();
   }
 
   const programId = program.id;
@@ -163,31 +251,43 @@ export const listBeneficiaries = async (
   };
 
   if (search) {
-    baseWhere.resident = {
-      OR: [
-        { firstName: { contains: search, mode: 'insensitive' } },
-        { lastName: { contains: search, mode: 'insensitive' } },
-        { middleName: { contains: search, mode: 'insensitive' } },
-      ],
-    };
+    const trimmed = search.trim();
+    if (trimmed) {
+      baseWhere.resident = {
+        OR: [
+          { firstName: { contains: trimmed, mode: 'insensitive' } },
+          { lastName: { contains: trimmed, mode: 'insensitive' } },
+          { middleName: { contains: trimmed, mode: 'insensitive' } },
+          { residentId: { contains: trimmed, mode: 'insensitive' } },
+        ],
+      };
+    }
   }
 
-  const [rows, total] = await Promise.all([
+  // First fetch: get the (filter+search)-matching apps and the unfiltered counts.
+  // We need counts regardless of filter/search so the pill badges stay stable.
+  const [counts, rows, baseCount] = await Promise.all([
+    getStatusCounts(programId),
     prisma.governmentProgramApplication.findMany({
       where: baseWhere,
-    include: {
-      resident: {
-        include: {
-          barangay: { select: { barangayName: true, municipality: true } },
-          seniorCitizenBeneficiary: { select: { seniorCitizenId: true } },
-          pwdBeneficiary: { select: { pwdId: true } },
-          studentBeneficiary: { select: { studentId: true } },
-          soloParentBeneficiary: { select: { soloParentId: true } },
-          healthcareWorkerBeneficiary: { select: { healthcareWorkerId: true } },
+      include: {
+        resident: {
+          include: {
+            barangay: { select: { barangayName: true, municipality: true } },
+            seniorCitizenBeneficiary: { select: { seniorCitizenId: true } },
+            pwdBeneficiary: { select: { pwdId: true } },
+            studentBeneficiary: { select: { studentId: true } },
+            soloParentBeneficiary: { select: { soloParentId: true } },
+            healthcareWorkerBeneficiary: { select: { healthcareWorkerId: true } },
+          },
         },
       },
-    },
-    orderBy: { reviewedAt: { sort: 'desc', nulls: 'last' } },
+      orderBy: (() => {
+        if (sortBy === 'name') {
+          return { resident: { lastName: sortOrder } };
+        }
+        return { reviewedAt: { sort: sortOrder, nulls: 'last' } };
+      })(),
       skip,
       take: limit,
     }),
@@ -195,7 +295,14 @@ export const listBeneficiaries = async (
   ]);
 
   if (rows.length === 0) {
-    return { data: [], total: filter !== 'all' ? 0 : total, page, limit, totalPages: 0 };
+    return {
+      data: [],
+      total: filter === 'all' ? baseCount : 0,
+      page,
+      limit,
+      totalPages: 0,
+      counts,
+    };
   }
 
   // Determine category for each row, then batch-fetch their pivot rows
@@ -269,19 +376,29 @@ export const listBeneficiaries = async (
     };
   });
 
-  // Apply status filter
+  // Apply status filter. We must also derive the true filtered total from
+  // `counts` (the unfiltered counts we just computed), since `data.length`
+  // is now capped at `limit` and would understate pagination.
   if (filter === 'active') {
     data = data.filter((b) => b.status === 'ACTIVE');
   } else if (filter === 'suspended') {
     data = data.filter((b) => b.status === 'INACTIVE');
   }
 
+  const filteredTotal =
+    filter === 'all'
+      ? baseCount
+      : filter === 'active'
+      ? counts.active
+      : counts.suspended;
+
   return {
     data,
-    total: filter !== 'all' ? data.length : total,
+    total: filteredTotal,
     page,
     limit,
-    totalPages: Math.ceil((filter !== 'all' ? data.length : total) / limit),
+    totalPages: Math.ceil(filteredTotal / limit),
+    counts,
   };
 };
 
@@ -620,6 +737,167 @@ export const removeBeneficiary = async (id: string): Promise<void> => {
       data: { status: 'cancelled' },
     }),
   ]);
+};
+
+// =============================================================================
+// BULK OPERATIONS
+// =============================================================================
+
+interface BulkResult {
+  updated: number;
+  failed: string[];
+}
+
+/**
+ * Resolve pivot ids for a list of application ids, in the same way the
+ * single-row suspend/activate/remove helpers do. Apps without a matching
+ * Libre-Sakay pivot are returned in `failed`.
+ */
+async function resolvePivotsForApps(applicationIds: string[]): Promise<{
+  pivots: Array<{ pivotId: string; appId: string; currentStatus: string }>;
+  failed: string[];
+}> {
+  if (applicationIds.length === 0) return { pivots: [], failed: [] };
+
+  const apps = await prisma.governmentProgramApplication.findMany({
+    where: { id: { in: applicationIds }, status: 'approved' },
+    select: {
+      id: true,
+      programId: true,
+      resident: {
+        select: {
+          seniorCitizenBeneficiary: { select: { seniorCitizenId: true } },
+          pwdBeneficiary: { select: { pwdId: true } },
+          studentBeneficiary: { select: { studentId: true } },
+          soloParentBeneficiary: { select: { soloParentId: true } },
+          healthcareWorkerBeneficiary: { select: { healthcareWorkerId: true } },
+        },
+      },
+    },
+  });
+
+  const categoryEntries: Array<{ appId: string; cat: { type: BeneficiaryType; id: string } }> = [];
+  const failed = new Set(applicationIds);
+
+  for (const app of apps) {
+    const cat = determineCategory(
+      app.resident.seniorCitizenBeneficiary,
+      app.resident.pwdBeneficiary,
+      app.resident.studentBeneficiary,
+      app.resident.soloParentBeneficiary,
+      app.resident.healthcareWorkerBeneficiary,
+    );
+    if (cat) {
+      categoryEntries.push({ appId: app.id, cat });
+      failed.delete(app.id);
+    }
+  }
+
+  if (categoryEntries.length === 0) {
+    return { pivots: [], failed: Array.from(failed) };
+  }
+
+  const pivotRows = await prisma.beneficiaryProgramPivot.findMany({
+    where: {
+      OR: categoryEntries.flatMap(e =>
+        apps
+          .filter(a => a.id === e.appId)
+          .map(a => ({
+            programId: a.programId,
+            beneficiaryType: e.cat.type as BeneficiaryType,
+            beneficiaryId: e.cat.id,
+          }))
+      ),
+    },
+    select: { id: true, beneficiaryType: true, beneficiaryId: true, status: true },
+  });
+
+  const pivotByKey = new Map<string, { pivotId: string; appId: string; currentStatus: string }>();
+  for (const p of pivotRows) {
+    pivotByKey.set(`${p.beneficiaryType}:${p.beneficiaryId}`, {
+      pivotId: p.id,
+      appId: '',
+      currentStatus: p.status ?? 'active',
+    });
+  }
+
+  const pivots: Array<{ pivotId: string; appId: string; currentStatus: string }> = [];
+  for (const entry of categoryEntries) {
+    const key = `${entry.cat.type}:${entry.cat.id}`;
+    const found = pivotByKey.get(key);
+    if (found) {
+      pivots.push({ pivotId: found.pivotId, appId: entry.appId, currentStatus: found.currentStatus });
+    } else {
+      failed.add(entry.appId);
+    }
+  }
+
+  return { pivots, failed: Array.from(failed) };
+}
+
+export const bulkSuspendBeneficiaries = async (
+  applicationIds: string[]
+): Promise<BulkResult> => {
+  const { pivots, failed } = await resolvePivotsForApps(applicationIds);
+  if (pivots.length === 0) return { updated: 0, failed };
+
+  // First-time suspensions get a fresh suspendedAt timestamp; subsequent
+  // ones preserve the original (so we don't reset the "Suspended since X" label).
+  const freshIds = pivots.filter(p => p.currentStatus !== 'suspended').map(p => p.pivotId);
+
+  let updated = 0;
+  await prisma.$transaction([
+    prisma.beneficiaryProgramPivot.updateMany({
+      where: { id: { in: pivots.map(p => p.pivotId) } },
+      data: { status: 'suspended' },
+    }),
+    ...(freshIds.length > 0
+      ? [
+          prisma.beneficiaryProgramPivot.updateMany({
+            where: { id: { in: freshIds } },
+            data: { suspendedAt: new Date() },
+          }),
+        ]
+      : []),
+  ]);
+  updated = pivots.length;
+  return { updated, failed };
+};
+
+export const bulkActivateBeneficiaries = async (
+  applicationIds: string[]
+): Promise<BulkResult> => {
+  const { pivots, failed } = await resolvePivotsForApps(applicationIds);
+  if (pivots.length === 0) return { updated: 0, failed };
+
+  let updated = 0;
+  await prisma.beneficiaryProgramPivot.updateMany({
+    where: { id: { in: pivots.map(p => p.pivotId) } },
+    data: { status: 'active', suspendedAt: null },
+  });
+  updated = pivots.length;
+  return { updated, failed };
+};
+
+export const bulkRemoveBeneficiaries = async (
+  applicationIds: string[]
+): Promise<BulkResult> => {
+  const { pivots, failed } = await resolvePivotsForApps(applicationIds);
+  if (pivots.length === 0) return { updated: 0, failed };
+
+  let updated = 0;
+  await prisma.$transaction([
+    prisma.beneficiaryProgramPivot.updateMany({
+      where: { id: { in: pivots.map(p => p.pivotId) } },
+      data: { status: 'cancelled' },
+    }),
+    prisma.governmentProgramApplication.updateMany({
+      where: { id: { in: pivots.map(p => p.appId) } },
+      data: { status: 'cancelled' },
+    }),
+  ]);
+  updated = pivots.length;
+  return { updated, failed };
 };
 
 // =============================================================================

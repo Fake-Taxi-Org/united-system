@@ -9,6 +9,7 @@ export interface BeneficiaryListItem {
   residentId: string;
   fullName: string;
   residentIdNumber: string;
+  picturePath: string | null;
   category: string;
   barangay: string;
   status: 'ACTIVE' | 'INACTIVE' | 'PENDING';
@@ -53,6 +54,12 @@ export interface BeneficiaryDetails extends BeneficiaryListItem {
   disabilityLevel: string | null;
 }
 
+export interface BeneficiaryCounts {
+  all: number;
+  active: number;
+  suspended: number;
+}
+
 export interface PaginatedBeneficiaries {
   data: BeneficiaryListItem[];
   pagination: {
@@ -61,6 +68,12 @@ export interface PaginatedBeneficiaries {
     limit: number;
     totalPages: number;
   };
+  /**
+   * Unfiltered counts broken down by enrollment status. Always reflects the
+   * full database state for the Libre Sakay program, so the admin pill tabs
+   * show stable totals regardless of the currently selected filter or search.
+   */
+  counts: BeneficiaryCounts;
 }
 
 export interface LibreSakayBeneficiaryStatus {
@@ -82,6 +95,13 @@ export interface ListBeneficiariesParams {
   page?: number;
   limit?: number;
   search?: string;
+  sortBy?: 'name' | 'date';
+  sortOrder?: 'asc' | 'desc';
+}
+
+export interface BulkBeneficiaryResult {
+  updated: number;
+  failed: string[];
 }
 
 export const libreSakayBeneficiaryService = {
@@ -91,6 +111,8 @@ export const libreSakayBeneficiaryService = {
     if (params.page) qs.set('page', String(params.page));
     if (params.limit) qs.set('limit', String(params.limit));
     if (params.search) qs.set('search', params.search);
+    if (params.sortBy) qs.set('sortBy', params.sortBy);
+    if (params.sortOrder) qs.set('sortOrder', params.sortOrder);
 
     const res = await api.get(`/admin/libre-sakay/beneficiaries?${qs}`);
     return res.data;
@@ -114,6 +136,21 @@ export const libreSakayBeneficiaryService = {
   async remove(id: string): Promise<void> {
     const res = await api.delete(`/admin/libre-sakay/beneficiaries/${id}`);
     return res.data;
+  },
+
+  async bulkSuspend(ids: string[]): Promise<BulkBeneficiaryResult> {
+    const res = await api.patch('/admin/libre-sakay/beneficiaries/bulk-suspend', { ids });
+    return res.data.data;
+  },
+
+  async bulkActivate(ids: string[]): Promise<BulkBeneficiaryResult> {
+    const res = await api.patch('/admin/libre-sakay/beneficiaries/bulk-activate', { ids });
+    return res.data.data;
+  },
+
+  async bulkRemove(ids: string[]): Promise<BulkBeneficiaryResult> {
+    const res = await api.delete('/admin/libre-sakay/beneficiaries/bulk', { data: { ids } });
+    return res.data.data;
   },
 
   async getMyLibreSakayStatus(): Promise<LibreSakayBeneficiaryStatus | null> {

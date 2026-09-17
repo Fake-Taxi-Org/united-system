@@ -124,8 +124,25 @@ export const queryKeys = {
     },
     beneficiaries: {
       all: ['libreSakay', 'beneficiaries'] as const,
-      list: (filter: string, page: number, search?: string) =>
-        ['libreSakay', 'beneficiaries', 'list', filter, page, search] as const,
+      list: (
+        filter: string,
+        page: number,
+        search?: string,
+        sortBy?: string,
+        sortOrder?: string,
+        limit?: number
+      ) =>
+        [
+          'libreSakay',
+          'beneficiaries',
+          'list',
+          filter,
+          page,
+          search ?? '',
+          sortBy ?? 'date',
+          sortOrder ?? 'desc',
+          limit ?? 25,
+        ] as const,
       detail: (id: string) => ['libreSakay', 'beneficiaries', 'detail', id] as const,
     },
   },

@@ -27,6 +27,9 @@ import {
   activateBeneficiaryController,
   removeBeneficiaryController,
   exportBeneficiariesController,
+  bulkSuspendBeneficiariesController,
+  bulkActivateBeneficiariesController,
+  bulkRemoveBeneficiariesController,
 } from '../controllers/libre-sakay.controller';
 import {
   getBusesValidation, getBusByIdValidation, createBusValidation,
@@ -36,6 +39,7 @@ import {
   createStopValidation, updateStopValidation, assignStopToRouteValidation,
   reorderStopsValidation, replaceStopInRouteValidation,
   listBeneficiariesValidation,
+  bulkBeneficiaryIdsValidation,
   getBeneficiaryByIdValidation,
   suspendBeneficiaryValidation,
   activateBeneficiaryValidation,
@@ -125,5 +129,9 @@ router.get('/beneficiaries/:id', validate(getBeneficiaryByIdValidation), getBene
 router.patch('/beneficiaries/:id/suspend', validate(suspendBeneficiaryValidation), suspendBeneficiaryController);
 router.patch('/beneficiaries/:id/activate', validate(activateBeneficiaryValidation), activateBeneficiaryController);
 router.delete('/beneficiaries/:id', validate(removeBeneficiaryValidation), removeBeneficiaryController);
+// Bulk operations — must come before `/beneficiaries/:id` routes? Actually no, Express matches PATCH /beneficiaries/bulk-suspend as a different path.
+router.patch('/beneficiaries/bulk-suspend', validate(bulkBeneficiaryIdsValidation), bulkSuspendBeneficiariesController);
+router.patch('/beneficiaries/bulk-activate', validate(bulkBeneficiaryIdsValidation), bulkActivateBeneficiariesController);
+router.delete('/beneficiaries/bulk', validate(bulkBeneficiaryIdsValidation), bulkRemoveBeneficiariesController);
 
 export default router;

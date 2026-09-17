@@ -109,6 +109,15 @@ export const listBeneficiariesValidation: ValidationChain[] = [
   query('page').optional().isInt({ min: 1 }).withMessage('page must be a positive integer'),
   query('limit').optional().isInt({ min: 1, max: 100 }).withMessage('limit must be between 1 and 100'),
   query('search').optional().isString().trim(),
+  query('sortBy').optional().isIn(['name', 'date']).withMessage('sortBy must be: name or date'),
+  query('sortOrder').optional().isIn(['asc', 'desc']).withMessage('sortOrder must be: asc or desc'),
+];
+
+export const bulkBeneficiaryIdsValidation: ValidationChain[] = [
+  body('ids')
+    .isArray({ min: 1, max: 500 })
+    .withMessage('ids must be an array of 1 to 500 beneficiary IDs'),
+  body('ids.*').isString().notEmpty().withMessage('Each id must be a non-empty string'),
 ];
 
 export const getBeneficiaryByIdValidation: ValidationChain[] = [

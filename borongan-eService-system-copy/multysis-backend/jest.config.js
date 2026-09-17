@@ -24,6 +24,12 @@ module.exports = {
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'lcov', 'html'],
   moduleFileExtensions: ['ts', 'js', 'json'],
+  // The `bcrypt` package isn't installed in this checkout. Map it to a
+  // stub so the import chain resolves; tests that need real hashing
+  // behaviour must install bcrypt (out of scope here).
+  moduleNameMapper: {
+    '^bcrypt$': '<rootDir>/__mocks__/bcrypt.ts',
+  },
   verbose: true,
 };
 
