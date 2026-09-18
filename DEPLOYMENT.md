@@ -652,6 +652,56 @@ npx prisma generate
 
 ---
 
+## E-Services Frontend Image Deploy (Railway)
+
+The E-Services frontend runs a prebuilt Docker image hosted on GHCR (`ghcr.io/yugin02/multysis-frontend:latest`) and linked to the Railway service `borongan-eservice`. It is NOT built from the repo source on Railway — the image must be built locally and pushed.
+
+### Why VITE_* build args are required
+
+`VITE_*` values are consumed at **build time** by Vite. The Dockerfile bakes them in via ARG/ENV so they land in the static JS bundle. Railway runtime variables never reach the prebuilt image, so a bare `docker build` ships an app with an empty `VITE_SUPABASE_URL` and crashes at page load.
+
+### Deploy
+
+```bash
+# Recommended: use the deploy script, which pulls the values from
+# the Railway service (single source of truth) and handles everything:
+borongan-eService-system-copy/scripts/deploy/deploy-frontend.sh
+```
+
+Or manually:
+
+```bash
+cd borongan-eService-system-copy/multysis-frontend
+
+# 1. Pull build vars from Railway
+VARS=$(railway variables --service borongan-eservice --json)
+
+# 2. Build with --build-arg for each VITE_* var (see .env.example for names)
+#    VITE_SUPABASE_TIMEOUT is optional (defaults to 120000 in code).
+docker build \
+  --build-arg VITE_API_BASE_URL=... \
+  --build-arg VITE_PORTAL_URL=... \
+  --build-arg VITE_SUPABASE_URL=... \
+  --build-arg VITE_SUPABASE_ANON_KEY=... \
+  -t ghcr.io/yugin02/multysis-frontend:latest .
+
+# 3. Push + redeploy
+docker push ghcr.io/yugin02/multysis-frontend:latest
+railway redeploy --service borongan-eservice --yes --from-source
+```
+
+### Post-deploy verification
+
+```bash
+railway status   # expect new deployment ID + Online
+curl -sI https://borongan-e-service.up.railway.app/ | head -1   # 200
+curl -s https://borongan-e-service.up.railway.app/ | grep -oE 'assets/index-[^"]+\.js'
+```
+
+The served `index-*.js` bundle should match the local `dist/index.html` output (hash may differ between builds due to dependency resolution, but the app must load without `supabaseUrl is required`).
+
+---
+
 ## Key Design Notes
 
 | Topic | Detail |
