@@ -118,7 +118,7 @@ export const useSessionSync = (options: UseSessionSyncOptions) => {
   };
 
   useEffect(() => {
-    if (!enabled || !hasStoredSession()) return;
+    if (!enabled) return;
     isActive.current = true;
     resetFlags();
 
