@@ -150,18 +150,39 @@ function mapEnrollmentStatus(status: string | null | undefined): 'ACTIVE' | 'INA
 // =============================================================================
 
 /**
+ * Builds the resident-name/id OR-clause used for beneficiary search, shared
+ * by listBeneficiaries and getStatusCounts so both filter identically.
+ */
+function buildResidentSearch(query: string) {
+  return {
+    OR: [
+      { firstName: { contains: query, mode: 'insensitive' } },
+      { lastName: { contains: query, mode: 'insensitive' } },
+      { middleName: { contains: query, mode: 'insensitive' } },
+      { residentId: { contains: query, mode: 'insensitive' } },
+    ],
+  };
+}
+
+/**
  * Counts Libre Sakay beneficiaries by enrollment status. Returns the
  * unfiltered totals (all / active / suspended) so the admin UI pill tabs
  * can show stable counts regardless of the currently-selected filter.
+ * Pass `search` to restrict the count to residents matching that query
+ * (used for search-aware pagination totals on filtered tabs).
  *
  * Implementation: two indexed queries (one for applications + their
  * category ids, one for all pivots in the program), then a small in-memory
  * join to determine each application's effective status.
  */
-async function getStatusCounts(programId: string): Promise<BeneficiaryCounts> {
+async function getStatusCounts(programId: string, search?: string): Promise<BeneficiaryCounts> {
+  const appsWhere: any = { programId, status: 'approved' };
+  if (search?.trim()) {
+    appsWhere.resident = buildResidentSearch(search.trim());
+  }
   const [apps, pivots] = await Promise.all([
     prisma.governmentProgramApplication.findMany({
-      where: { programId, status: 'approved' },
+      where: appsWhere,
       select: {
         id: true,
         resident: {
@@ -253,20 +274,17 @@ export const listBeneficiaries = async (
   if (search) {
     const trimmed = search.trim();
     if (trimmed) {
-      baseWhere.resident = {
-        OR: [
-          { firstName: { contains: trimmed, mode: 'insensitive' } },
-          { lastName: { contains: trimmed, mode: 'insensitive' } },
-          { middleName: { contains: trimmed, mode: 'insensitive' } },
-          { residentId: { contains: trimmed, mode: 'insensitive' } },
-        ],
-      };
+      baseWhere.resident = buildResidentSearch(trimmed);
     }
   }
 
   // First fetch: get the (filter+search)-matching apps and the unfiltered counts.
   // We need counts regardless of filter/search so the pill badges stay stable.
-  const [counts, rows, baseCount] = await Promise.all([
+  // When a status filter is combined with a search, re-count against the search
+  // so pagination totals reflect the narrowed set (the pill badges stay unfiltered).
+  const searchKey = search?.trim() || undefined;
+  const needsFilteredCounts = filter !== 'all' && !!searchKey;
+  const [counts, rows, baseCount, filteredCounts] = await Promise.all([
     getStatusCounts(programId),
     prisma.governmentProgramApplication.findMany({
       where: baseWhere,
@@ -292,15 +310,23 @@ export const listBeneficiaries = async (
       take: limit,
     }),
     prisma.governmentProgramApplication.count({ where: baseWhere }),
+    needsFilteredCounts ? getStatusCounts(programId, searchKey) : Promise.resolve(null),
   ]);
+
+  const filteredTotal =
+    filter === 'all'
+      ? baseCount
+      : filter === 'active'
+      ? (filteredCounts ?? counts).active
+      : (filteredCounts ?? counts).suspended;
 
   if (rows.length === 0) {
     return {
       data: [],
-      total: filter === 'all' ? baseCount : 0,
+      total: filteredTotal,
       page,
       limit,
-      totalPages: 0,
+      totalPages: Math.ceil(filteredTotal / limit),
       counts,
     };
   }
@@ -377,20 +403,13 @@ export const listBeneficiaries = async (
   });
 
   // Apply status filter. We must also derive the true filtered total from
-  // `counts` (the unfiltered counts we just computed), since `data.length`
-  // is now capped at `limit` and would understate pagination.
+  // the (search-aware when needed) counts we computed above, since
+  // `data.length` is now capped at `limit` and would understate pagination.
   if (filter === 'active') {
     data = data.filter((b) => b.status === 'ACTIVE');
   } else if (filter === 'suspended') {
     data = data.filter((b) => b.status === 'INACTIVE');
   }
-
-  const filteredTotal =
-    filter === 'all'
-      ? baseCount
-      : filter === 'active'
-      ? counts.active
-      : counts.suspended;
 
   return {
     data,

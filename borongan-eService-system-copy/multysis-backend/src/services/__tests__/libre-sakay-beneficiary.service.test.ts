@@ -31,6 +31,7 @@ jest.mock('../../config/database', () => ({
       update: jest.fn(),
       updateMany: jest.fn(),
     },
+    $queryRaw: jest.fn().mockResolvedValue([]),
     $transaction: jest.fn((args: any) => Promise.resolve(Array.isArray(args) ? [] : args)),
   },
 }));

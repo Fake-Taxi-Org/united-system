@@ -125,13 +125,15 @@ router.patch(
 // Beneficiaries
 router.get('/beneficiaries', validate(listBeneficiariesValidation), listBeneficiariesController);
 router.get('/beneficiaries/export', validate(exportBeneficiariesValidation), exportBeneficiariesController);
+// Bulk operations must be registered before `/beneficiaries/:id` — otherwise
+// DELETE /beneficiaries/bulk matches the `:id` route (segment count is identical)
+// and the single-remove handler runs with id='bulk'.
+router.patch('/beneficiaries/bulk-suspend', validate(bulkBeneficiaryIdsValidation), bulkSuspendBeneficiariesController);
+router.patch('/beneficiaries/bulk-activate', validate(bulkBeneficiaryIdsValidation), bulkActivateBeneficiariesController);
+router.delete('/beneficiaries/bulk', validate(bulkBeneficiaryIdsValidation), bulkRemoveBeneficiariesController);
 router.get('/beneficiaries/:id', validate(getBeneficiaryByIdValidation), getBeneficiaryByIdController);
 router.patch('/beneficiaries/:id/suspend', validate(suspendBeneficiaryValidation), suspendBeneficiaryController);
 router.patch('/beneficiaries/:id/activate', validate(activateBeneficiaryValidation), activateBeneficiaryController);
 router.delete('/beneficiaries/:id', validate(removeBeneficiaryValidation), removeBeneficiaryController);
-// Bulk operations — must come before `/beneficiaries/:id` routes? Actually no, Express matches PATCH /beneficiaries/bulk-suspend as a different path.
-router.patch('/beneficiaries/bulk-suspend', validate(bulkBeneficiaryIdsValidation), bulkSuspendBeneficiariesController);
-router.patch('/beneficiaries/bulk-activate', validate(bulkBeneficiaryIdsValidation), bulkActivateBeneficiariesController);
-router.delete('/beneficiaries/bulk', validate(bulkBeneficiaryIdsValidation), bulkRemoveBeneficiariesController);
 
 export default router;
