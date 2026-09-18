@@ -8,6 +8,8 @@
 
 import { getApiUrl } from './auth.service';
 
+const AUTH_USER_KEY = 'auth_user_minimal';
+
 let isRefreshing = false;
 let refreshSubscribers: Array<(token: string | null) => void> = [];
 
@@ -24,6 +26,20 @@ const onTokenRefreshed = (token: string | null) => {
 };
 
 export const refreshAccessToken = async (): Promise<string | null> => {
+  // No stored session means the user is definitely anonymous — refreshing is pointless
+  // (auth_user_minimal is only written on login and removed on logout/expiry).
+  const hasStoredSession = (() => {
+    try {
+      return localStorage.getItem(AUTH_USER_KEY) !== null;
+    } catch {
+      return false;
+    }
+  })();
+
+  if (!hasStoredSession) {
+    return null;
+  }
+
   if (isRefreshing) {
     return new Promise(resolve => subscribeTokenRefresh(resolve));
   }
