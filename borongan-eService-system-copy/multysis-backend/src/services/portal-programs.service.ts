@@ -509,6 +509,22 @@ async function syncLibreSakayBeneficiary(
   }
 }
 
+export async function syncBeneficiaryPicture(
+  residentUuid: string,
+  picturePath: string | null
+): Promise<void> {
+  try {
+    const supabase = getLibreSakaySupabase();
+    const { error } = await supabase
+      .from('libre_sakay_beneficiary')
+      .update({ picture_path: picturePath, synced_at: new Date().toISOString() })
+      .eq('resident_uuid', residentUuid);
+    if (error) console.error('[libre-sakay-sync] Picture sync error:', error.message);
+  } catch (err) {
+    console.error('[libre-sakay-sync] Picture sync unexpected error:', err);
+  }
+}
+
 async function removeLibreSakayBeneficiary(residentUuid: string): Promise<void> {
   try {
     const supabase = getLibreSakaySupabase();
