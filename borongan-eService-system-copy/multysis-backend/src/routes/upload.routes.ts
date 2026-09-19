@@ -8,6 +8,7 @@ import {
   uploadProfilePicture,
 } from '../middleware/upload';
 import { createUploadPresignedUrl, deleteFromSupabase } from '../utils/supabaseStorage';
+import { syncBeneficiaryPicture } from '../services/portal-programs.service';
 
 const router = Router();
 
@@ -72,6 +73,8 @@ router.post(
         where: { id: resident.id },
         data: { picturePath: fileUrl } as any,
       });
+
+      await syncBeneficiaryPicture(resident.id, fileUrl);
 
       res.status(200).json({
         status: 'success',
@@ -173,6 +176,8 @@ router.post(
         where: { id: resident.id },
         data: { picturePath: fileUrl } as any,
       });
+
+      await syncBeneficiaryPicture(resident.id, fileUrl);
 
       res.status(200).json({
         status: 'success',

@@ -10,6 +10,7 @@ import { Prisma } from '@prisma/client';
 import cacheService from './cache.service';
 import { formatResidentResponse } from './auth.service';
 import { getSupabase, ESERVICE_BUCKET } from '../config/supabase';
+import { syncBeneficiaryPicture } from './portal-programs.service';
 
 // =============================================================================
 // STORAGE HELPERS
@@ -298,6 +299,10 @@ export const updateMyProfile = async (id: string, data: SelfUpdateData) => {
     if (storagePath) {
       await deleteFromSupabaseStorage(storagePath);
     }
+  }
+
+  if (pictureChanged) {
+    await syncBeneficiaryPicture(id, newPicturePath ?? null);
   }
 
   return formatResidentResponse(updated);
