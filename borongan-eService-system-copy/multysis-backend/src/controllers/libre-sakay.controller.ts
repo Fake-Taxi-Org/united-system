@@ -19,6 +19,9 @@ import {
   activateBeneficiary,
   removeBeneficiary,
   exportBeneficiaries,
+  bulkSuspendBeneficiaries,
+  bulkActivateBeneficiaries,
+  bulkRemoveBeneficiaries,
 } from '../services/libre-sakay-beneficiary.service';
 import prisma from '../config/database';
 
@@ -582,8 +585,10 @@ export const listBeneficiariesController = async (req: AuthRequest, res: Respons
     const page = req.query.page ? parseInt(req.query.page as string, 10) : 1;
     const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 20;
     const search = req.query.search as string | undefined;
+    const sortBy = req.query.sortBy === 'name' ? 'name' : 'date';
+    const sortOrder = req.query.sortOrder === 'asc' ? 'asc' : 'desc';
 
-    const result = await listBeneficiaries(filter, page, limit, search);
+    const result = await listBeneficiaries(filter, page, limit, search, sortBy, sortOrder);
     res.status(200).json({
       status: 'success',
       data: result.data,
@@ -593,6 +598,7 @@ export const listBeneficiariesController = async (req: AuthRequest, res: Respons
         limit: result.limit,
         totalPages: result.totalPages,
       },
+      counts: result.counts,
     });
   } catch (error: any) {
     res.status(500).json({ status: 'error', message: error.message });
@@ -640,6 +646,38 @@ export const removeBeneficiaryController = async (req: AuthRequest, res: Respons
     const { id } = req.params;
     await removeBeneficiary(id);
     res.status(200).json({ status: 'success', message: 'Beneficiary removed' });
+  } catch (error: any) {
+    res.status(500).json({ status: 'error', message: error.message });
+  }
+};
+
+// ----- BULK OPERATIONS -----
+
+export const bulkSuspendBeneficiariesController = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const ids = (req.body?.ids as string[]) ?? [];
+    const result = await bulkSuspendBeneficiaries(ids);
+    res.status(200).json({ status: 'success', data: result });
+  } catch (error: any) {
+    res.status(500).json({ status: 'error', message: error.message });
+  }
+};
+
+export const bulkActivateBeneficiariesController = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const ids = (req.body?.ids as string[]) ?? [];
+    const result = await bulkActivateBeneficiaries(ids);
+    res.status(200).json({ status: 'success', data: result });
+  } catch (error: any) {
+    res.status(500).json({ status: 'error', message: error.message });
+  }
+};
+
+export const bulkRemoveBeneficiariesController = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const ids = (req.body?.ids as string[]) ?? [];
+    const result = await bulkRemoveBeneficiaries(ids);
+    res.status(200).json({ status: 'success', data: result });
   } catch (error: any) {
     res.status(500).json({ status: 'error', message: error.message });
   }

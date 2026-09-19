@@ -1,0 +1,25 @@
+name: backend-tests
+
+on:
+  push:
+    branches: [main]
+    paths: ['borongan-eService-system-copy/multysis-backend/**']
+  pull_request:
+    paths: ['borongan-eService-system-copy/multysis-backend/**']
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: borongan-eService-system-copy/multysis-backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm install
+      - run: npx prisma generate
+      # Scope to the libre-sakay suites: integration + portal-registration tests
+      # need a live DB / Supabase and fail without them (pre-existing).
+      - run: npx jest --coverage=false libre-sakay

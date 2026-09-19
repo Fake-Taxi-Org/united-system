@@ -1,5 +1,6 @@
 united-database/.env
 united-database/.env.example
+united-database/backups/
 docs/
 .claude/
 .sisyphus/
