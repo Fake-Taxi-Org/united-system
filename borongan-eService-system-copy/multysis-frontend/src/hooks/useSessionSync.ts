@@ -15,6 +15,15 @@ import api from '../services/api/auth.service';
 
 const SESSION_POLL_INTERVAL_MS = 60_000; // poll every 60 seconds
 const SERVER_DRIFT_BUFFER_MS = 5_000; // treat server TTL as 5s shorter to avoid races
+const AUTH_USER_KEY = 'auth_user_minimal'; // written on login, removed on logout/expiry
+
+const hasStoredSession = (): boolean => {
+  try {
+    return localStorage.getItem(AUTH_USER_KEY) !== null;
+  } catch {
+    return false;
+  }
+};
 
 interface SessionStatus {
   idleRemainingMs: number | null;
@@ -54,7 +63,8 @@ export const useSessionSync = (options: UseSessionSyncOptions) => {
   };
 
   const fetchSessionStatus = async () => {
-    if (!enabled) return;
+    // Anonymous users have no session to check — skip the poll entirely
+    if (!enabled || !hasStoredSession()) return;
 
     const { onIdleWarning, onAbsoluteWarning, onIdleTimeout, onAbsoluteTimeout } = callbacksRef.current;
 

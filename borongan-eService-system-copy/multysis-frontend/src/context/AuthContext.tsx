@@ -43,6 +43,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   // Fetch current user from server (validates session)
+  // Only fetch when a stored session exists — anonymous visitors (no auth_user_minimal)
+  // have nothing to validate, so skip the call to avoid noisy 401s on every page load.
   const { data: fetchedUser, isSuccess, isError, error } = useQuery({
     queryKey: queryKeys.auth.me,
     queryFn: async () => {
@@ -55,6 +57,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         throw err; // re-throw network errors, 500s, etc.
       }
     },
+    enabled: stored !== null,
     staleTime: 5 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
     retry: false,
