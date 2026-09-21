@@ -1,11 +1,20 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiAlertCircle, FiCheck, FiChevronDown, FiClock, FiDownload, FiExternalLink, FiHelpCircle, FiX } from 'react-icons/fi';
+import { FiAlertCircle, FiCheck, FiChevronDown, FiClock, FiDownload, FiExternalLink, FiHelpCircle, FiLogOut, FiUser, FiX } from 'react-icons/fi';
 
 import { useInstallPrompt } from '@/hooks/useInstallPrompt';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { ResidentIDCard } from '@/components/portal/ResidentIDCard';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -19,6 +28,13 @@ import type { GovernmentProgramType } from '@/services/api/government-program.se
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
+
+const API_ORIGIN = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api').replace(/\/api$/, '');
+function toAbsUrl(p?: string | null): string | null {
+  if (!p) return null;
+  if (p.startsWith('http://') || p.startsWith('https://')) return p;
+  return `${API_ORIGIN}${p.startsWith('/') ? '' : '/'}${p}`;
+}
 
 const TYPE_LABELS: Record<GovernmentProgramType, string> = {
   SENIOR_CITIZEN: 'Senior Citizen',
@@ -315,15 +331,44 @@ export const Home: React.FC = () => {
               </Button>
             )}
             {isAuthenticated ? (
-              <>
-                <span className="text-sm text-heading-500 hidden sm:block">{user?.name}</span>
-                <Button size="sm" variant="outline" onClick={() => navigate('/profile')}>
-                  Profile
-                </Button>
-                <Button size="sm" variant="outline" onClick={logout}>
-                  Sign Out
-                </Button>
-              </>
+              (() => {
+                const photo = toAbsUrl(user?.picturePath);
+                const initials = ((user?.name ?? '?').match(/\b\w/g) ?? []).slice(0, 2).join('').toUpperCase() || '?';
+                return (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button
+                        type="button"
+                        aria-label="Account menu"
+                        className="rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
+                      >
+                        <Avatar className="h-9 w-9 border border-gray-200">
+                          {photo ? <AvatarImage src={photo} alt={user?.name ?? 'Profile'} /> : null}
+                          <AvatarFallback className="bg-primary-100 text-primary-700 text-sm">{initials}</AvatarFallback>
+                        </Avatar>
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="min-w-[14rem]">
+                      <DropdownMenuLabel className="font-normal">
+                        <div className="flex flex-col gap-0.5">
+                          <span className="text-sm font-semibold text-heading-900 truncate">{user?.name}</span>
+                          <span className="text-xs text-muted-foreground truncate">{user?.email || user?.username}</span>
+                        </div>
+                      </DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onSelect={() => navigate('/profile')}>
+                        <FiUser />
+                        <span>Profile</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onSelect={logout} className="text-danger-700 focus:text-danger-700">
+                        <FiLogOut />
+                        <span>Sign out</span>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                );
+              })()
             ) : (
               <>
                 <Button size="sm" variant="ghost" onClick={() => navigate('/login')}>
