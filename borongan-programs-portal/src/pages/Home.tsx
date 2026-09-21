@@ -317,6 +317,9 @@ export const Home: React.FC = () => {
             {isAuthenticated ? (
               <>
                 <span className="text-sm text-heading-500 hidden sm:block">{user?.name}</span>
+                <Button size="sm" variant="outline" onClick={() => navigate('/profile')}>
+                  Profile
+                </Button>
                 <Button size="sm" variant="outline" onClick={logout}>
                   Sign Out
                 </Button>

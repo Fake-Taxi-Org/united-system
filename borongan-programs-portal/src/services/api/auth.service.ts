@@ -131,6 +131,15 @@ export const authService = {
       throw new Error(err.response?.data?.message || err.message || 'Not authenticated');
     }
   },
+
+  async updateMyProfile(payload: Record<string, unknown>): Promise<void> {
+    try {
+      await api.put('/residents/me', payload);
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } }; message?: string };
+      throw new Error(err.response?.data?.message || err.message || 'Failed to update profile');
+    }
+  },
 };
 
 export default api;
