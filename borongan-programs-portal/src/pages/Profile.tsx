@@ -39,7 +39,6 @@ interface ProfileForm {
   streetAddress: string;
   emergencyContactPerson: string;
   emergencyContactNumber: string;
-  picturePath: string;
 }
 
 const emptyDefaults: ProfileForm = {
@@ -55,7 +54,6 @@ const emptyDefaults: ProfileForm = {
   streetAddress: '',
   emergencyContactPerson: '',
   emergencyContactNumber: '',
-  picturePath: '',
 };
 
 export const Profile: React.FC = () => {
@@ -65,6 +63,7 @@ export const Profile: React.FC = () => {
   const queryClient = useQueryClient();
   const photoInputRef = useRef<HTMLInputElement>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [photoUrl, setPhotoUrl] = useState<string>('');
   const [photoUploading, setPhotoUploading] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -73,12 +72,11 @@ export const Profile: React.FC = () => {
     handleSubmit,
     reset,
     formState: { isDirty },
-    setValue,
-    watch,
   } = form;
 
   useEffect(() => {
     if (!user) return;
+    setPhotoUrl(user.picturePath ?? '');
     reset({
       firstName: user.firstName ?? '',
       middleName: user.middleName ?? '',
@@ -92,7 +90,6 @@ export const Profile: React.FC = () => {
       streetAddress: user.streetAddress ?? '',
       emergencyContactPerson: user.emergencyContactPerson ?? '',
       emergencyContactNumber: user.emergencyContactNumber ?? '',
-      picturePath: user.picturePath ?? '',
     });
   }, [user, reset]);
 
@@ -110,7 +107,7 @@ export const Profile: React.FC = () => {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       const url = upload.data.data.url as string;
-      setValue('picturePath', url, { shouldDirty: true });
+      setPhotoUrl(url);
       setPhotoPreview(null);
       toast({ title: 'Photo uploaded', description: 'Save the form to apply your new photo.' });
     } catch {
@@ -137,7 +134,7 @@ export const Profile: React.FC = () => {
         streetAddress: values.streetAddress || null,
         emergencyContactPerson: values.emergencyContactPerson || null,
         emergencyContactNumber: values.emergencyContactNumber || null,
-        picturePath: values.picturePath || null,
+        picturePath: photoUrl || null,
       });
       await queryClient.invalidateQueries({ queryKey: queryKeys.auth.me });
       toast({ title: 'Profile updated', description: 'Your changes have been saved.' });
@@ -150,7 +147,7 @@ export const Profile: React.FC = () => {
     }
   };
 
-  const photoSrc = photoPreview || toAbsUrl(watch('picturePath'));
+  const photoSrc = photoPreview || toAbsUrl(photoUrl);
   const initials = ((user?.name ?? '?').match(/\b\w/g) ?? []).slice(0, 2).join('').toUpperCase() || '?';
   const barangayName = (user?.barangay as { barangayName?: string; name?: string } | null)?.barangayName
     || (user?.barangay as { barangayName?: string; name?: string } | null)?.name

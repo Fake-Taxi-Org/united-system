@@ -250,6 +250,56 @@ describe('resident.service - updateMyProfile', () => {
     });
   });
 
+  describe('picturePath overwrite guard', () => {
+    const setup = (resident: object, updated: object) => {
+      (mockedPrisma.resident.findUnique as jest.Mock).mockResolvedValue(resident);
+      (mockedPrisma.resident.update as jest.Mock).mockResolvedValue(updated);
+    };
+
+    it('drops empty-string picturePath so the existing photo is preserved', async () => {
+      const residentWithPhoto = {
+        ...mockResident,
+        picturePath: 'https://example.com/storage/old-photo.jpg',
+      };
+      setup(residentWithPhoto, residentWithPhoto);
+
+      await updateMyProfile('resident-1', { sex: 'Female', picturePath: '' });
+
+      const updateCall = (mockedPrisma.resident.update as jest.Mock).mock.calls[0][0];
+      expect(updateCall.data).not.toHaveProperty('picturePath');
+      expect(updateCall.data.sex).toBe('Female');
+    });
+
+    it('writes picturePath when an explicit URL is provided', async () => {
+      const newUrl = 'https://example.com/storage/new-photo.jpg';
+      const updatedResident = { ...mockResident, picturePath: newUrl };
+      setup(mockResident, updatedResident);
+
+      await updateMyProfile('resident-1', { picturePath: newUrl });
+
+      const updateCall = (mockedPrisma.resident.update as jest.Mock).mock.calls[0][0];
+      expect(updateCall.data.picturePath).toBe(newUrl);
+    });
+
+    it('writes null when picturePath is explicitly null', async () => {
+      setup(mockResident, mockResident);
+
+      await updateMyProfile('resident-1', { picturePath: null });
+
+      const updateCall = (mockedPrisma.resident.update as jest.Mock).mock.calls[0][0];
+      expect(updateCall.data.picturePath).toBeNull();
+    });
+
+    it('does not include picturePath when the key is absent from the payload', async () => {
+      setup(mockResident, mockResident);
+
+      await updateMyProfile('resident-1', { sex: 'Female' });
+
+      const updateCall = (mockedPrisma.resident.update as jest.Mock).mock.calls[0][0];
+      expect(updateCall.data).not.toHaveProperty('picturePath');
+    });
+  });
+
   describe('error handling', () => {
     it('should throw error if resident not found', async () => {
       (mockedPrisma.resident.findUnique as jest.Mock).mockResolvedValue(null);
