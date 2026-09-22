@@ -1,21 +1,32 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiCamera, FiInfo, FiLoader, FiLogOut } from 'react-icons/fi';
+import { FiArrowLeft, FiCamera, FiHelpCircle, FiInfo, FiLoader, FiLogOut, FiUser } from 'react-icons/fi';
 import { useForm } from 'react-hook-form';
 import { useQueryClient } from '@tanstack/react-query';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/context/AuthContext';
+import { useInstallPrompt } from '@/hooks/useInstallPrompt';
 import { useToast } from '@/hooks/use-toast';
 import api from '@/services/api/auth.service';
 import { queryKeys } from '@/lib/query-keys';
 import { cn } from '@/lib/utils';
+
+const USER_GUIDE_URL = '/user-guide/presentation.html';
 
 const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
 
@@ -63,6 +74,7 @@ export const Profile: React.FC = () => {
   const { user, logout } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { canInstall, isInstalled, install } = useInstallPrompt();
   const photoInputRef = useRef<HTMLInputElement>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [photoUploading, setPhotoUploading] = useState(false);
@@ -158,6 +170,80 @@ export const Profile: React.FC = () => {
 
   return (
     <div className="min-h-screen flex flex-col bg-neutral-50">
+      {/* Global nav */}
+      <nav className="bg-white border-b border-gray-100 sticky top-0 z-40 shadow-sm">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => navigate('/')}
+              aria-label="Back to home"
+              className="gap-1.5 -ml-2"
+            >
+              <FiArrowLeft size={14} />
+              <span className="hidden sm:inline">Back</span>
+            </Button>
+            <div className="flex items-center gap-2.5">
+              <img src="/favicon.png" alt="LGU Borongan" className="h-8 w-auto" />
+              <span className="font-semibold text-heading-700 text-sm hidden sm:block">
+                Borongan Services Portal
+              </span>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => window.open(USER_GUIDE_URL, '_blank', 'noopener,noreferrer')}
+              className="gap-1.5"
+              aria-label="Open user guide"
+              title="User Guide"
+            >
+              <FiHelpCircle size={14} />
+              <span className="hidden sm:inline">Help</span>
+            </Button>
+            {canInstall && !isInstalled && (
+              <Button size="sm" variant="outline" onClick={install} className="gap-1.5">
+                <span className="hidden sm:inline">Install App</span>
+              </Button>
+            )}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  aria-label="Account menu"
+                  className="rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
+                >
+                  <Avatar className="h-9 w-9 border border-gray-200">
+                    {photoSrc ? <AvatarImage src={photoSrc} alt={user?.name ?? 'Profile'} /> : null}
+                    <AvatarFallback className="bg-primary-100 text-primary-700 text-sm">{initials}</AvatarFallback>
+                  </Avatar>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="min-w-[14rem]">
+                <DropdownMenuLabel className="font-normal">
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-sm font-semibold text-heading-900 truncate">{user?.name}</span>
+                    <span className="text-xs text-muted-foreground truncate">{user?.email || user?.username}</span>
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onSelect={() => navigate('/profile')}>
+                  <FiUser />
+                  <span>Profile</span>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onSelect={logout} className="text-danger-700 focus:text-danger-700">
+                  <FiLogOut />
+                  <span>Sign out</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
+      </nav>
+
       {/* Identity header */}
       <div className="bg-white border-b border-gray-100">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
@@ -200,16 +286,6 @@ export const Profile: React.FC = () => {
               )}
               <p className="text-xs text-muted-foreground mt-1.5 hidden sm:block">Hover the photo to change it.</p>
             </div>
-
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => navigate('/')}
-              className="hidden sm:inline-flex self-start"
-            >
-              Back to Home
-            </Button>
           </div>
         </div>
       </div>
