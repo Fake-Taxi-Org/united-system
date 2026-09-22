@@ -197,6 +197,59 @@ describe('resident.service - updateMyProfile', () => {
     });
   });
 
+  describe('birthdate handling', () => {
+    const setupResidentMock = (resident: object, updated: object) => {
+      (mockedPrisma.resident.findUnique as jest.Mock).mockResolvedValue(resident);
+      (mockedPrisma.resident.update as jest.Mock).mockResolvedValue(updated);
+    };
+
+    it('normalizes a date-only string (YYYY-MM-DD) to a Date at UTC midnight', async () => {
+      const updatedResident = {
+        ...mockResident,
+        birthdate: new Date('2005-06-27T00:00:00.000Z'),
+      };
+      setupResidentMock(mockResident, updatedResident);
+
+      await updateMyProfile('resident-1', { birthdate: '2005-06-27' });
+
+      const updateCall = (mockedPrisma.resident.update as jest.Mock).mock.calls[0][0];
+      expect(updateCall.data.birthdate).toBeInstanceOf(Date);
+      expect((updateCall.data.birthdate as Date).toISOString()).toBe('2005-06-27T00:00:00.000Z');
+    });
+
+    it('normalizes a full ISO-8601 string to a Date', async () => {
+      const updatedResident = {
+        ...mockResident,
+        birthdate: new Date('2005-06-27T12:34:56.000Z'),
+      };
+      setupResidentMock(mockResident, updatedResident);
+
+      await updateMyProfile('resident-1', { birthdate: '2005-06-27T12:34:56Z' });
+
+      const updateCall = (mockedPrisma.resident.update as jest.Mock).mock.calls[0][0];
+      expect(updateCall.data.birthdate).toBeInstanceOf(Date);
+      expect((updateCall.data.birthdate as Date).toISOString()).toBe('2005-06-27T12:34:56.000Z');
+    });
+
+    it('passes null birthdate through unchanged', async () => {
+      setupResidentMock(mockResident, mockResident);
+
+      await updateMyProfile('resident-1', { birthdate: null });
+
+      const updateCall = (mockedPrisma.resident.update as jest.Mock).mock.calls[0][0];
+      expect(updateCall.data.birthdate).toBeNull();
+    });
+
+    it('passes undefined birthdate through unchanged', async () => {
+      setupResidentMock(mockResident, mockResident);
+
+      await updateMyProfile('resident-1', { sex: 'Female' });
+
+      const updateCall = (mockedPrisma.resident.update as jest.Mock).mock.calls[0][0];
+      expect(updateCall.data.birthdate).toBeUndefined();
+    });
+  });
+
   describe('error handling', () => {
     it('should throw error if resident not found', async () => {
       (mockedPrisma.resident.findUnique as jest.Mock).mockResolvedValue(null);

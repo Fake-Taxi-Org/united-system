@@ -275,9 +275,20 @@ export const updateMyProfile = async (id: string, data: SelfUpdateData) => {
 
   const oldPicturePath = resident.picturePath;
 
+  // Normalize birthdate: accept either ISO-8601 DateTime or date-only string
+  // (mirrors the pattern in portal-registration.service.ts). Prisma rejects
+  // bare "YYYY-MM-DD" because the schema column is DateTime.
+  const normalized: Record<string, unknown> = { ...data };
+  if (typeof normalized.birthdate === 'string') {
+    const trimmed = normalized.birthdate.trim();
+    normalized.birthdate = trimmed.length === 10
+      ? new Date(trimmed + 'T00:00:00.000Z')
+      : new Date(trimmed);
+  }
+
   const updated = await prisma.resident.update({
     where: { id },
-    data: data as any,
+    data: normalized as any,
     include: {
       barangay: { include: { municipality: true } },
       credentials: { select: { googleId: true } },
