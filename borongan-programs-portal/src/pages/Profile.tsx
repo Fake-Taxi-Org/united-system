@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiArrowLeft, FiCamera, FiHelpCircle, FiInfo, FiLoader, FiLogOut, FiUser } from 'react-icons/fi';
+import { FiArrowLeft, FiCamera, FiDownload, FiHelpCircle, FiInfo, FiLoader, FiLogOut, FiUser } from 'react-icons/fi';
 import { useForm } from 'react-hook-form';
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -205,6 +205,7 @@ export const Profile: React.FC = () => {
             </Button>
             {canInstall && !isInstalled && (
               <Button size="sm" variant="outline" onClick={install} className="gap-1.5">
+                <FiDownload size={14} />
                 <span className="hidden sm:inline">Install App</span>
               </Button>
             )}
