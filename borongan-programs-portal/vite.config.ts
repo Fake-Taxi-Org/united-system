@@ -1,3 +1,4 @@
+/// <reference types="vitest/config" />
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
@@ -59,5 +60,8 @@ export default defineConfig({
   },
   server: {
     port: 5175,
+  },
+  test: {
+    environment: 'jsdom',
   },
 })
