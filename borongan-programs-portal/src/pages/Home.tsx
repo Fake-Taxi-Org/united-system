@@ -287,8 +287,8 @@ export const Home: React.FC = () => {
   const fetchPrograms = useCallback(async () => {
     setIsLoading(true);
     try {
-      // Fetch only Libre Sakay at the API level — others filtered server-side
-      const { data } = await portalProgramsService.listPrograms({ name: 'Libre Sakay' });
+      // Fetch all active programs; routing per card is handled by ProgramCard
+      const { data } = await portalProgramsService.listPrograms({});
       setPrograms(data);
     } catch {
       toastRef.current({ variant: 'destructive', title: 'Failed to load programs', description: 'Please try again.' });

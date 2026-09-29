@@ -24,7 +24,9 @@
     "db:studio": "npx prisma studio",
     "db:setup": "npx prisma generate && npx prisma migrate deploy && npx prisma db seed",
     "typecheck": "tsc --noEmit",
-    "import:beneficiaries": "ts-node scripts/import-beneficiaries.ts"
+    "import:beneficiaries": "ts-node scripts/import-beneficiaries.ts",
+    "import:direkta-senior": "ts-node scripts/import-direkta-senior-beneficiaries.ts",
+    "add:pending-apps": "ts-node scripts/add-pending-applications.ts"
   },
   "keywords": [
     "nodejs",
